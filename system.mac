@@ -1,0 +1,75 @@
+; system.mac
+; macros to make system calls easier
+
+%include "io.h"
+%ifndef SYSTEM_MAC
+	%define SYSTEM_MAC
+	%macro write 3
+		mov rdi, %1	; first parameter:  file descriptor
+		mov rsi, %2	; second parameter: address of string
+		mov rdx, %3	; third parameter:  length of string
+		mov rax, SYS_write
+		syscall
+	%endmacro
+
+	%macro read 3
+		mov rdi, %1	; first parameter:  file descriptor
+		mov rsi, %2	; second parameter: address of string
+		mov rdx, %3	; third parameter:  length of string
+		mov rax, SYS_read
+		syscall
+	%endmacro
+
+	%macro exit 1
+		mov dil, %1
+		mov rax, SYS_exit
+		syscall
+	%endmacro
+	
+	%macro open 2
+		mov rdi, %1				; first parameter: address of filename
+		mov rsi, O_WRONLY|666q			; write only, permissions
+		mov rax, SYS_creat              ; select system call 'creat'
+		syscall
+
+		mov %2, rax			; second parameter: save file descriptor
+	%endmacro
+	
+	%macro close 1
+		mov rdi, %1			; first parameter: recover file descriptor
+		mov rax, SYS_close				; close file
+		syscall
+	%endmacro
+	
+	%macro read_file 4
+		mov rdi, %1 			; first parameter: pointer to filename
+		mov rsi, O_RDONLY			; file access - read only
+		mov rax, SYS_open           ; system call 'open'
+		syscall                     ; perform the system call
+
+		mov %2, eax		; second parameter: save file descriptor
+
+	again:
+		mov rdi, %2		; second parameter: recover file descriptor
+		mov rsi, %3 	; third parameter: point to buffer
+		mov rdx, %4		; fourth parameter: buffer size
+		mov rax, SYS_read			; read from file
+		syscall
+		cmp rax, 0					; check for end of file
+		jz done
+		
+		mov rdx, rax				; transfer length of line read
+		mov edi, STDOUT				; write to screen
+		mov rsi, %3			; point to string to print
+		mov rax, SYS_write			; write to screen
+		syscall
+
+		jmp again
+
+	done:
+		mov rdi, %2 	; file descriptor
+		mov rax, SYS_close				; close file
+		syscall
+	%endmacro
+	
+%endif
